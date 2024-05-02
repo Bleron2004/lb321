@@ -15,6 +15,8 @@ const app = express();
 const server = http.createServer(app);
 
 // create a livereload server
+// ONLY FOR DEVELOPMENT important to remove in production
+// by set the NODE_ENV to production
 const env = process.env.NODE_ENV || "development";
 if (env !== "production") {
   const liveReloadServer = livereload.createServer();
@@ -43,9 +45,6 @@ initializeAPI(app);
   // Initialize the database
   initializeMariaDB();
   await initializeDBSchema();
-  // TODO: REMOVE!!!! test the database connection
-  const result = await executeSQL("SELECT * FROM users;");
-  console.log(result);
   //start the web server
   const serverPort = process.env.PORT || 3000;
   server.listen(serverPort, () => {
