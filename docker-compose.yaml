@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   mariadb:
     image: mariadb:11.1.2
-    command: '--default-authentication-plugin=mysql_native_password'
+    command: "--default-authentication-plugin=mysql_native_password"
     volumes:
       - m321_project_mariadb:/var/lib/mysql
     restart: always
