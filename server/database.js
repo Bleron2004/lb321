@@ -1,4 +1,4 @@
-let pool = null;
+let pool = null
 
 /**
  * Initializes the MariaDB connection pool.
@@ -15,15 +15,15 @@ let pool = null;
  * @see {@link https://mariadb.com/kb/en/mariadb-connector-nodejs-pooling/}
  */
 const initializeMariaDB = () => {
-  const mariadb = require("mariadb");
+  const mariadb = require('mariadb')
   pool = mariadb.createPool({
-    database: process.env.DB_NAME || "mychat",
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER || "mychat",
-    password: process.env.DB_PASSWORD || "mychatpassword",
+    database: process.env.DB_NAME || 'mychat',
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'mychat',
+    password: process.env.DB_PASSWORD || 'mychatpassword',
     connectionLimit: 5,
-  });
-};
+  })
+}
 
 /**
  * Allows the execution of SQL queries.
@@ -33,20 +33,20 @@ const initializeMariaDB = () => {
  * @example
  * // Select statement without parameters.
  * executeSQL("SELECT * FROM users;");
- * @returns {Array} Returns the result of the query.
+ * @returns {Promise<Array>} Returns the result of the query.
  */
 const executeSQL = async (query, params) => {
-  let conn;
+  let conn
   try {
-    conn = await pool.getConnection();
-    const res = await conn.query(query, params);
-    return res;
+    conn = await pool.getConnection()
+    const res = await conn.query(query, params)
+    return res
   } catch (err) {
-    console.log(err);
+    console.log(err)
   } finally {
-    if (conn) conn.release();
+    if (conn) conn.release()
   }
-};
+}
 
 /**
  * Initializes the database schema.
@@ -58,16 +58,16 @@ const initializeDBSchema = async () => {
     id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     PRIMARY KEY (id)
-  );`;
-  await executeSQL(userTableQuery);
+  );`
+  await executeSQL(userTableQuery)
   const messageTableQuery = `CREATE TABLE IF NOT EXISTS messages (
     id INT NOT NULL AUTO_INCREMENT,
     user_id INT NOT NULL,
     message VARCHAR(255) NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (user_id) REFERENCES users(id)
-  );`;
-  await executeSQL(messageTableQuery);
-};
+  );`
+  await executeSQL(messageTableQuery)
+}
 
-module.exports = { executeSQL, initializeMariaDB, initializeDBSchema };
+module.exports = { executeSQL, initializeMariaDB, initializeDBSchema }

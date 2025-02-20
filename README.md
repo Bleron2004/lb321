@@ -2,7 +2,7 @@
 
 ## Prerequisites
 - Docker
-- Node >= 18.x
+- Node >= 20.x
 
 ## Get Started
 ```bash
@@ -20,4 +20,4 @@ docker exec -it mariadb bash
 mysql -u root -p
 ```
 OR
-- Go to http://localhost:8080
+- Go to PHPMyAdmin: http://localhost:9200

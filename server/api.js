@@ -1,4 +1,4 @@
-const { executeSQL } = require("./database");
+const { executeSQL } = require('./database')
 
 /**
  * Initializes the API endpoints.
@@ -9,9 +9,9 @@ const { executeSQL } = require("./database");
  */
 const initializeAPI = (app) => {
   // default REST api endpoint
-  app.get("/api/hello", hello);
-  app.get("/api/users", users);
-};
+  app.get('/api/hello', hello)
+  app.get('/api/users', users)
+}
 
 /**
  * A simple hello world endpoint.
@@ -22,8 +22,8 @@ const initializeAPI = (app) => {
  * @returns {void}
  */
 const hello = (req, res) => {
-  res.send("Hello World!");
-};
+  res.send('Hello World!')
+}
 
 /**
  * A simple users that shows the use of the database for insert and select statements.
@@ -34,9 +34,9 @@ const hello = (req, res) => {
  * @returns {void}
  */
 const users = async (req, res) => {
-  await executeSQL("INSERT INTO users (name) VALUES ('John Doe');");
-  const result = await executeSQL("SELECT * FROM users;");
-  res.json(result);
-};
+  await executeSQL("INSERT INTO users (name) VALUES ('John Doe');")
+  const result = await executeSQL('SELECT * FROM users;')
+  res.json(result)
+}
 
-module.exports = { initializeAPI };
+module.exports = { initializeAPI }
