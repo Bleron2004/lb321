@@ -10,8 +10,10 @@ const clients = []
  * @returns {void}
  */
 const initializeWebsocketServer = (server) => {
+  console.log('Initializing websocket server')
   const websocketServer = new WebSocket.Server({ server })
   websocketServer.on('connection', onConnection)
+  console.log('Websocket server initialized')
 }
 
 /**

@@ -15,6 +15,7 @@ let pool = null
  * @see {@link https://mariadb.com/kb/en/mariadb-connector-nodejs-pooling/}
  */
 const initializeMariaDB = () => {
+  console.log('Initializing MariaDB')
   const mariadb = require('mariadb')
   pool = mariadb.createPool({
     database: process.env.DB_NAME || 'mychat',
@@ -23,6 +24,7 @@ const initializeMariaDB = () => {
     password: process.env.DB_PASSWORD || 'mychatpassword',
     connectionLimit: 5,
   })
+  console.log('MariaDB initialized')
 }
 
 /**
@@ -54,6 +56,7 @@ const executeSQL = async (query, params) => {
  * Useful for the first time setup.
  */
 const initializeDBSchema = async () => {
+  console.log('Initializing database schema')
   const userTableQuery = `CREATE TABLE IF NOT EXISTS users (
     id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
@@ -68,6 +71,7 @@ const initializeDBSchema = async () => {
     FOREIGN KEY (user_id) REFERENCES users(id)
   );`
   await executeSQL(messageTableQuery)
+  console.log('Database schema initialized')
 }
 
 module.exports = { executeSQL, initializeMariaDB, initializeDBSchema }

@@ -8,9 +8,11 @@ const { executeSQL } = require('./database')
  * @returns {void}
  */
 const initializeAPI = (app) => {
+  console.log('Initializing API')
   // default REST api endpoint
   app.get('/api/hello', hello)
   app.get('/api/users', users)
+  console.log('API initialized')
 }
 
 /**
