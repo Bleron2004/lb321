@@ -1,28 +1,45 @@
-services:
-  mariadb:
-    image: mariadb:lts-ubi
-    volumes:
-      - m321_project_mariadb:/var/lib/mysql
-    restart: always
-    environment:
-      - MYSQL_ROOT_PASSWORD=supersecret123
-      - MYSQL_DATABASE=mychat
-      - MYSQL_USER=mychat
-      - MYSQL_PASSWORD=mychatpassword
-    ports:
-      - 3306:3306
+version: '3.9'
 
-  phpmyadmin:
-    image: phpmyadmin
-    depends_on:
-      - mariadb
+services:
+  db:
+    image: mariadb:10.5
     restart: always
     environment:
-      - PMA_HOST=mariadb
-      - PMA_PORT=3306
-      - MYSQL_ROOT_PASSWORD=supersecret123
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: chatapp
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpass
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - chatnet
+
+  server:
+    build: ./server
+    restart: always
+    environment:
+      DB_HOST: db
+      DB_USER: chatuser
+      DB_PASSWORD: chatpass
+      DB_NAME: chatapp
     ports:
-      - 9200:80
+      - "3000:3000"
+    depends_on:
+      - db
+    networks:
+      - chatnet
+
+  client:
+    build: ./client
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+    networks:
+      - chatnet
 
 volumes:
-  m321_project_mariadb:
+  db_data:
+
+networks:
+  chatnet:

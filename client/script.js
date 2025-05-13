@@ -3,10 +3,8 @@
 // replace localhost with the server's IP address or domain name.
 const socket = new WebSocket('ws://localhost:3000')
 
-// Listen for WebSocket open event
 socket.addEventListener('open', (event) => {
   console.log('WebSocket connected.')
-  // Send a dummy user to the backend
   const user = { id: 1, name: 'John Doe' }
   const message = {
     type: 'user',
@@ -21,18 +19,15 @@ const createMessage = (message) => {
   document.getElementById('messages').appendChild(p)
 }
 
-// Listen for messages from server
 socket.addEventListener('message', (event) => {
   console.log(`Received message: ${event.data}`)
   createMessage(event.data)
 })
 
-// Listen for WebSocket close event
 socket.addEventListener('close', (event) => {
   console.log('WebSocket closed.')
 })
 
-// Listen for WebSocket errors
 socket.addEventListener('error', (event) => {
   console.error('WebSocket error:', event)
 })
