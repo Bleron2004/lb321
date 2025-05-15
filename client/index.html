@@ -7,12 +7,14 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+<!-- Startbereich -->
 <div id="start">
     <h2>Chat Anmeldung</h2>
     <button onclick="showForm('register')">Registrieren</button>
     <button onclick="showForm('login')">Anmelden</button>
 </div>
 
+<!-- Registrierungsformular -->
 <div id="registerForm" class="form-section" style="display:none;">
     <h3>Registrieren</h3>
     <input type="text" id="regUsername" placeholder="Benutzername" /><br />
@@ -20,11 +22,21 @@
     <button onclick="register()">Absenden</button>
 </div>
 
+<!-- Loginformular -->
 <div id="loginForm" class="form-section" style="display:none;">
     <h3>Anmelden</h3>
     <input type="text" id="loginUsername" placeholder="Benutzername" /><br />
     <input type="password" id="loginPassword" placeholder="Passwort" /><br />
     <button onclick="login()">Absenden</button>
+</div>
+
+<!-- Chatbereich – nur sichtbar nach Login -->
+<div id="chat" style="display:none; margin-top: 2rem;">
+    <div class="flex gap-2 mt-4">
+        <input id="messageInput" type="text" placeholder="Nachricht eingeben" class="border px-2 py-1 rounded w-64" />
+        <button id="sendMessage" class="p-2 bg-blue-300 hover:bg-blue-500 rounded">Senden</button>
+    </div>
+    <div id="messages" style="margin-top: 1rem;"></div>
 </div>
 
 <div id="dashboard" class="form-section" style="display:none;">
