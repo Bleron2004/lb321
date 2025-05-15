@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8" />
     <title>Chat Anmeldung</title>
-    <script defer src="script.js"></script>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
 <!-- Startbereich -->
 <div id="start">
     <h2>Chat Anmeldung</h2>
@@ -30,17 +30,29 @@
     <button onclick="login()">Absenden</button>
 </div>
 
-<!-- Chatbereich – nur sichtbar nach Login -->
+<!-- Chatbereich -->
 <div id="chat" style="display:none; margin-top: 2rem;">
+    <h3>Aktueller Raum: <span id="roomName">Allgemein</span></h3>
+    <select id="roomSelector" onchange="switchRoom(this.value)">
+        <option value="Allgemein">Allgemein</option>
+        <option value="Lernen">Lernen</option>
+        <option value="Coden">Coden</option>
+    </select>
+
     <div class="flex gap-2 mt-4">
         <input id="messageInput" type="text" placeholder="Nachricht eingeben" class="border px-2 py-1 rounded w-64" />
         <button id="sendMessage" class="p-2 bg-blue-300 hover:bg-blue-500 rounded">Senden</button>
     </div>
+    <p id="typingStatus" style="font-style: italic; color: gray;"></p>
     <div id="messages" style="margin-top: 1rem;"></div>
 </div>
 
-<div id="dashboard" class="form-section" style="display:none;">
-    <h1>Dashboard</h1>
+<!-- Aktive Benutzerliste -->
+<div id="userListContainer" style="display: none;">
+    <h3>Aktive Benutzer:</h3>
+    <ul id="userList"></ul>
 </div>
+
+<script src="script.js"></script>
 </body>
 </html>
