@@ -85,10 +85,12 @@ function connectWebSocket() {
             case 'message':
                 if (data.room === currentRoom) {
                     const p = document.createElement('p');
-                    p.textContent = `${data.user.name}: ${data.text}`;
+                    const time = data.time ? `[${data.time}] ` : '';
+                    p.textContent = `${time}${data.user.name}: ${data.text}`;
                     document.getElementById('messages').appendChild(p);
                 }
                 break;
+
 
             case 'users':
                 updateUserList(data.users);
@@ -118,26 +120,13 @@ function updateUserList(users) {
     });
 }
 
-function switchRoom(newRoom) {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
-            type: 'leave',
-            user: currentUser,
-            room: currentRoom
-        }));
-    }
-
-    currentRoom = newRoom;
-    document.getElementById('roomName').textContent = currentRoom;
+function switchRoom(roomName) {
+    currentRoom = roomName;
+    document.getElementById('roomName').textContent = roomName;
     document.getElementById('messages').innerHTML = '';
     document.getElementById('typingStatus').textContent = '';
-
     if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
-            type: 'user',
-            user: currentUser,
-            room: currentRoom
-        }));
+        socket.send(JSON.stringify({ type: 'user', user: currentUser, room: currentRoom }));
     }
 }
 
@@ -149,13 +138,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = input.value.trim();
         if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
 
-        socket.send(JSON.stringify({
+        const message = {
             type: 'message',
             text,
             room: currentRoom
-        }));
+        };
 
+        socket.send(JSON.stringify(message));
         input.value = '';
+
+        // Nach dem Senden ist man nicht mehr am Tippen
         socket.send(JSON.stringify({ type: 'typing', user: currentUser, room: currentRoom, isTyping: false }));
     });
 

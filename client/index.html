@@ -3,56 +3,61 @@
 <head>
     <meta charset="UTF-8" />
     <title>Chat Anmeldung</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+<div class="wrapper">
 
-<!-- Startbereich -->
-<div id="start">
-    <h2>Chat Anmeldung</h2>
-    <button onclick="showForm('register')">Registrieren</button>
-    <button onclick="showForm('login')">Anmelden</button>
-</div>
-
-<!-- Registrierungsformular -->
-<div id="registerForm" class="form-section" style="display:none;">
-    <h3>Registrieren</h3>
-    <input type="text" id="regUsername" placeholder="Benutzername" /><br />
-    <input type="password" id="regPassword" placeholder="Passwort" /><br />
-    <button onclick="register()">Absenden</button>
-</div>
-
-<!-- Loginformular -->
-<div id="loginForm" class="form-section" style="display:none;">
-    <h3>Anmelden</h3>
-    <input type="text" id="loginUsername" placeholder="Benutzername" /><br />
-    <input type="password" id="loginPassword" placeholder="Passwort" /><br />
-    <button onclick="login()">Absenden</button>
-</div>
-
-<!-- Chatbereich -->
-<div id="chat" style="display:none; margin-top: 2rem;">
-    <h3>Aktueller Raum: <span id="roomName">Allgemein</span></h3>
-    <select id="roomSelector" onchange="switchRoom(this.value)">
-        <option value="Allgemein">Allgemein</option>
-        <option value="Lernen">Lernen</option>
-        <option value="Coden">Coden</option>
-    </select>
-
-    <div class="flex gap-2 mt-4">
-        <input id="messageInput" type="text" placeholder="Nachricht eingeben" class="border px-2 py-1 rounded w-64" />
-        <button id="sendMessage" class="p-2 bg-blue-300 hover:bg-blue-500 rounded">Senden</button>
+    <!-- Startbereich -->
+    <div id="start" class="container">
+        <h2>Chat Anmeldung</h2>
+        <button onclick="showForm('register')">Registrieren</button>
+        <button onclick="showForm('login')">Anmelden</button>
     </div>
-    <p id="typingStatus" style="font-style: italic; color: gray;"></p>
-    <div id="messages" style="margin-top: 1rem;"></div>
-</div>
 
-<!-- Aktive Benutzerliste -->
-<div id="userListContainer" style="display: none;">
-    <h3>Aktive Benutzer:</h3>
-    <ul id="userList"></ul>
+    <!-- Registrierungsformular -->
+    <div id="registerForm" class="container" style="display:none;">
+        <h3>Registrieren</h3>
+        <input type="text" id="regUsername" placeholder="Benutzername" />
+        <input type="password" id="regPassword" placeholder="Passwort" />
+        <button onclick="register()">Absenden</button>
+    </div>
+
+    <!-- Loginformular -->
+    <div id="loginForm" class="container" style="display:none;">
+        <h3>Anmelden</h3>
+        <input type="text" id="loginUsername" placeholder="Benutzername" />
+        <input type="password" id="loginPassword" placeholder="Passwort" />
+        <button onclick="login()">Absenden</button>
+    </div>
+
+    <!-- Chatbereich -->
+    <div id="chat" class="container" style="display:none;">
+        <h3>Aktueller Raum: <span id="roomName">Allgemein</span></h3>
+        <select id="roomSelector" onchange="switchRoom(this.value)">
+            <option value="Allgemein">Allgemein</option>
+            <option value="Lernen">Lernen</option>
+            <option value="Coden">Coden</option>
+        </select>
+
+        <div class="flex mt-4">
+            <input id="messageInput" type="text" placeholder="Nachricht eingeben" />
+            <button id="sendMessage">Senden</button>
+        </div>
+
+        <p id="typingStatus"></p>
+        <div id="messages"></div>
+    </div>
+
+    <!-- Aktive Benutzerliste -->
+    <div id="userListContainer" class="container" style="display:none;">
+        <h3>Aktive Benutzer:</h3>
+        <ul id="userList"></ul>
+    </div>
+
 </div>
 
 <script src="script.js"></script>
 </body>
+
 </html>

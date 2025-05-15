@@ -1,5 +1,10 @@
 const WebSocket = require('ws');
 const clients = [];
+const chatHistory = {
+  Allgemein: [],
+  Lernen: [],
+  Coden: []
+};
 
 const initializeWebsocketServer = (server) => {
   const websocketServer = new WebSocket.Server({ server });
@@ -19,12 +24,17 @@ const onMessage = (ws, messageBuffer) => {
 
   switch (message.type) {
     case 'user': {
-      // vorher entfernen
       const index = clients.findIndex(c => c.ws === ws);
       if (index !== -1) clients.splice(index, 1);
 
       clients.push({ ws, user: message.user, room: message.room });
       sendUserListToRoom(message.room);
+
+      // Chatverlauf an neuen Client senden
+      const history = chatHistory[message.room] || [];
+      history.forEach(msg => {
+        ws.send(JSON.stringify(msg));
+      });
       break;
     }
 
@@ -42,12 +52,21 @@ const onMessage = (ws, messageBuffer) => {
       const sender = clients.find(c => c.ws === ws);
       if (!sender) return;
 
-      broadcastToRoom(sender.room, {
+      const timestamp = new Date().toLocaleTimeString('de-CH', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const msg = {
         type: 'message',
         user: sender.user,
         text: message.text,
-        room: sender.room
-      });
+        room: sender.room,
+        time: timestamp
+      };
+
+      chatHistory[sender.room].push(msg);
+      broadcastToRoom(sender.room, msg);
       break;
     }
 
