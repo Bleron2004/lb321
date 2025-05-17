@@ -1,11 +1,6 @@
 const WebSocket = require('ws');
+const { executeSQL } = require('./database');
 const clients = [];
-
-const chatHistory = {
-  Allgemein: [],
-  Lernen: [],
-  Coden: []
-};
 
 const initializeWebsocketServer = (server) => {
   const websocketServer = new WebSocket.Server({ server });
@@ -19,20 +14,87 @@ const onConnection = (ws) => {
   ws.on('close', () => onDisconnect(ws));
 };
 
-const onMessage = (ws, messageBuffer) => {
-  const message = JSON.parse(messageBuffer.toString());
-  console.log('Received:', message);
+const getOrCreateUserId = async (username) => {
+  const users = await executeSQL('SELECT id FROM users WHERE name = ?', [username]);
+  if (users.length > 0) return users[0].id;
+  const result = await executeSQL('INSERT INTO users (name) VALUES (?)', [username]);
+  return result.insertId;
+};
+
+const sendUserListToRoom = (room) => {
+  const users = clients
+      .filter(client => client.room === room)
+      .map(client => client.user);
+
+  const msg = JSON.stringify({ type: 'users', users });
+
+  clients
+      .filter(client => client.room === room && client.ws.readyState === WebSocket.OPEN)
+      .forEach(client => client.ws.send(msg));
+};
+
+const sendUserListToAllRooms = () => {
+  const uniqueRooms = [...new Set(clients.map(c => c.room))];
+  uniqueRooms.forEach(sendUserListToRoom);
+};
+
+const broadcastToRoom = (room, messageObj, excludeWs = null) => {
+  const message = JSON.stringify(messageObj);
+  clients
+      .filter(client =>
+          client.room === room &&
+          client.ws !== excludeWs &&
+          client.ws.readyState === WebSocket.OPEN
+      )
+      .forEach(client => client.ws.send(message));
+};
+
+const onMessage = async (ws, messageBuffer) => {
+  let message;
+  try {
+    message = JSON.parse(messageBuffer.toString());
+  } catch (err) {
+    console.error('Invalid JSON:', err);
+    return;
+  }
 
   switch (message.type) {
     case 'user': {
+      const existing = clients.find(c => c.user.name === message.user.name && c.ws !== ws);
+      if (existing) {
+        const oldRoom = existing.room;
+        clients.splice(clients.indexOf(existing), 1);
+        sendUserListToRoom(oldRoom);
+      }
+
       const index = clients.findIndex(c => c.ws === ws);
       if (index !== -1) clients.splice(index, 1);
 
       clients.push({ ws, user: message.user, room: message.room });
-      sendUserListToRoom(message.room);
+      sendUserListToAllRooms();
 
-      const history = chatHistory[message.room] || [];
-      ws.send(JSON.stringify({ type: 'refreshHistory', messages: history }));
+      try {
+        const rows = await executeSQL(`
+          SELECT m.message, m.id, m.room, u.name
+          FROM messages m
+                 JOIN users u ON m.user_id = u.id
+          WHERE m.room = ?
+          ORDER BY m.id ASC
+        `, [message.room]);
+
+        const formatted = rows.map(r => ({
+          type: 'message',
+          user: { name: r.name },
+          text: r.message,
+          room: r.room,
+          time: ''
+        }));
+
+        ws.send(JSON.stringify({ type: 'refreshHistory', messages: formatted }));
+      } catch (err) {
+        console.error('Fehler beim Laden der Nachrichten:', err);
+      }
+
       break;
     }
 
@@ -55,16 +117,31 @@ const onMessage = (ws, messageBuffer) => {
         minute: '2-digit'
       });
 
-      const msg = {
-        type: 'message',
-        user: sender.user,
-        text: message.text,
-        room: sender.room,
-        time: timestamp
-      };
+      let msgToSend = null;
 
-      chatHistory[sender.room].push(msg);
-      broadcastToRoom(sender.room, msg);
+      try {
+        const userId = await getOrCreateUserId(sender.user.name);
+        await executeSQL(
+            'INSERT INTO messages (user_id, message, room) VALUES (?, ?, ?)',
+            [userId, message.text, sender.room]
+        );
+
+        // Hole aktuellen Namen aus DB (immer aktuell!)
+        const user = await executeSQL('SELECT name FROM users WHERE id = ?', [userId]);
+
+        msgToSend = {
+          type: 'message',
+          user: { name: user[0].name },
+          text: message.text,
+          room: sender.room,
+          time: timestamp
+        };
+
+      } catch (err) {
+        console.error('Fehler beim Speichern:', err);
+      }
+
+      if (msgToSend) broadcastToRoom(sender.room, msgToSend);
       break;
     }
 
@@ -83,40 +160,65 @@ const onMessage = (ws, messageBuffer) => {
 
     case 'usernameChange': {
       const client = clients.find(c => c.ws === ws);
-      if (client) {
-        const oldName = client.user.name;
-        const newName = message.user.name;
+      if (!client) return;
 
-        // 1. Update Client-Name
-        client.user = message.user;
+      const oldName = client.user.name;
+      const newName = message.user.name;
 
-        // 2. Update Name in Chatverlauf (alle Räume)
-        Object.keys(chatHistory).forEach(room => {
-          chatHistory[room] = chatHistory[room].map(msg => {
-            if (msg.user.name === oldName) {
-              return {
-                ...msg,
-                user: { ...msg.user, name: newName }
-              };
-            }
-            return msg;
-          });
-        });
+      try {
+        const result = await executeSQL('SELECT id FROM users WHERE name = ?', [oldName]);
+        if (result.length === 0) {
+          console.error('User-ID nicht gefunden:', oldName);
+          return;
+        }
+        const userId = result[0].id;
 
-        // 3. Neue Userliste senden
-        sendUserListToRoom(client.room);
+        // Namen in DB aktualisieren
+        await executeSQL('UPDATE users SET name = ? WHERE id = ?', [newName, userId]);
 
-        // 4. Chatverlauf neu senden (damit Clients korrekt ersetzen statt anhängen)
-        broadcastToRoom(client.room, {
-          type: 'refreshHistory',
-          messages: chatHistory[client.room]
-        });
+        // Lokale Session aktualisieren
+        client.user.name = newName;
+      } catch (err) {
+        console.error('Fehler beim usernameChange:', err);
+        return;
       }
+
+      sendUserListToAllRooms();
+
+      try {
+        const rows = await executeSQL(`
+          SELECT m.message, m.id, m.room, u.name
+          FROM messages m
+                 JOIN users u ON m.user_id = u.id
+          WHERE m.room = ?
+          ORDER BY m.id ASC
+        `, [client.room]);
+
+        const formatted = rows.map(r => ({
+          type: 'message',
+          user: { name: r.name },
+          text: r.message,
+          room: r.room,
+          time: ''
+        }));
+
+        clients
+            .filter(c => c.room === client.room && c.ws.readyState === WebSocket.OPEN)
+            .forEach(c => {
+              c.ws.send(JSON.stringify({
+                type: 'refreshHistory',
+                messages: formatted
+              }));
+            });
+      } catch (err) {
+        console.error('Fehler beim Neuladen des Verlaufs:', err);
+      }
+
       break;
     }
 
     default:
-      console.log('Unknown message type:', message.type);
+      console.log('Unbekannter Nachrichtentyp:', message.type);
   }
 };
 
@@ -128,28 +230,5 @@ const onDisconnect = (ws) => {
     sendUserListToRoom(room);
   }
 };
-
-function sendUserListToRoom(room) {
-  const users = clients
-      .filter(client => client.room === room)
-      .map(client => client.user);
-
-  const msg = JSON.stringify({ type: 'users', users });
-
-  clients
-      .filter(client => client.room === room && client.ws.readyState === WebSocket.OPEN)
-      .forEach(client => client.ws.send(msg));
-}
-
-function broadcastToRoom(room, messageObj, excludeWs = null) {
-  const message = JSON.stringify(messageObj);
-  clients
-      .filter(client =>
-          client.room === room &&
-          client.ws !== excludeWs &&
-          client.ws.readyState === WebSocket.OPEN
-      )
-      .forEach(client => client.ws.send(message));
-}
 
 module.exports = { initializeWebsocketServer };
