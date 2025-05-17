@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const clients = [];
+
 const chatHistory = {
   Allgemein: [],
   Lernen: [],
@@ -30,11 +31,8 @@ const onMessage = (ws, messageBuffer) => {
       clients.push({ ws, user: message.user, room: message.room });
       sendUserListToRoom(message.room);
 
-      // Chatverlauf an neuen Client senden
       const history = chatHistory[message.room] || [];
-      history.forEach(msg => {
-        ws.send(JSON.stringify(msg));
-      });
+      ws.send(JSON.stringify({ type: 'refreshHistory', messages: history }));
       break;
     }
 
@@ -80,6 +78,40 @@ const onMessage = (ws, messageBuffer) => {
         room: sender.room,
         isTyping: message.isTyping
       }, ws);
+      break;
+    }
+
+    case 'usernameChange': {
+      const client = clients.find(c => c.ws === ws);
+      if (client) {
+        const oldName = client.user.name;
+        const newName = message.user.name;
+
+        // 1. Update Client-Name
+        client.user = message.user;
+
+        // 2. Update Name in Chatverlauf (alle Räume)
+        Object.keys(chatHistory).forEach(room => {
+          chatHistory[room] = chatHistory[room].map(msg => {
+            if (msg.user.name === oldName) {
+              return {
+                ...msg,
+                user: { ...msg.user, name: newName }
+              };
+            }
+            return msg;
+          });
+        });
+
+        // 3. Neue Userliste senden
+        sendUserListToRoom(client.room);
+
+        // 4. Chatverlauf neu senden (damit Clients korrekt ersetzen statt anhängen)
+        broadcastToRoom(client.room, {
+          type: 'refreshHistory',
+          messages: chatHistory[client.room]
+        });
+      }
       break;
     }
 

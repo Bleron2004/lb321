@@ -17,6 +17,7 @@ function showChat() {
     document.getElementById('start').style.display = 'none';
     document.getElementById('chat').style.display = 'block';
     document.getElementById('userListContainer').style.display = 'block';
+    document.getElementById('usernameChangeContainer').style.display = 'block';
     document.getElementById('roomName').textContent = currentRoom;
 }
 
@@ -70,6 +71,21 @@ async function login() {
     }
 }
 
+function changeUsername() {
+    const newName = document.getElementById('newUsernameInput').value.trim();
+    if (!newName || !socket || socket.readyState !== WebSocket.OPEN) return;
+
+    currentUser.name = newName;
+
+    socket.send(JSON.stringify({
+        type: 'usernameChange',
+        user: currentUser,
+        room: currentRoom
+    }));
+
+    document.getElementById('newUsernameInput').value = '';
+}
+
 function connectWebSocket() {
     socket = new WebSocket('ws://localhost:3000');
 
@@ -91,7 +107,6 @@ function connectWebSocket() {
                 }
                 break;
 
-
             case 'users':
                 updateUserList(data.users);
                 break;
@@ -100,6 +115,21 @@ function connectWebSocket() {
                 if (data.room === currentRoom && data.user.name !== currentUser.name) {
                     const el = document.getElementById('typingStatus');
                     el.textContent = data.isTyping ? `${data.user.name} schreibt ...` : '';
+                }
+                break;
+
+            case 'refreshHistory':
+                if (data.messages && Array.isArray(data.messages)) {
+                    const container = document.getElementById('messages');
+                    container.innerHTML = ''; // alten Verlauf löschen
+                    data.messages.forEach(msg => {
+                        if (msg.room === currentRoom) {
+                            const p = document.createElement('p');
+                            const time = msg.time ? `[${msg.time}] ` : '';
+                            p.textContent = `${time}${msg.user.name}: ${msg.text}`;
+                            container.appendChild(p);
+                        }
+                    });
                 }
                 break;
         }
@@ -147,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.send(JSON.stringify(message));
         input.value = '';
 
-        // Nach dem Senden ist man nicht mehr am Tippen
         socket.send(JSON.stringify({ type: 'typing', user: currentUser, room: currentRoom, isTyping: false }));
     });
 
