@@ -60,41 +60,36 @@ const onMessage = async (ws, messageBuffer) => {
 
   switch (message.type) {
     case 'user': {
-      const existing = clients.find(c => c.user.name === message.user.name && c.ws !== ws);
-      if (existing) {
-        const oldRoom = existing.room;
-        clients.splice(clients.indexOf(existing), 1);
-        sendUserListToRoom(oldRoom);
-      }
-
+      // Raumwechsel Korrektur: Bestehenden Client aktualisieren!
       const index = clients.findIndex(c => c.ws === ws);
-      if (index !== -1) clients.splice(index, 1);
-
-      clients.push({ ws, user: message.user, room: message.room });
+      if (index !== -1) {
+        clients[index].room = message.room;
+        clients[index].user = message.user;
+      } else {
+        clients.push({ ws, user: message.user, room: message.room });
+      }
       sendUserListToAllRooms();
 
-      try {
-        const rows = await executeSQL(`
-          SELECT m.message, m.id, m.room, u.name
-          FROM messages m
-                 JOIN users u ON m.user_id = u.id
-          WHERE m.room = ?
-          ORDER BY m.id ASC
-        `, [message.room]);
+      const rows = await executeSQL(`
+        SELECT m.message, m.id, m.room, m.created_at, u.name
+        FROM messages m
+               JOIN users u ON m.user_id = u.id
+        WHERE m.room = ?
+        ORDER BY m.id ASC
+      `, [message.room]);
 
-        const formatted = rows.map(r => ({
-          type: 'message',
-          user: { name: r.name },
-          text: r.message,
-          room: r.room,
-          time: ''
-        }));
+      const formatted = rows.map(r => ({
+        type: 'message',
+        user: { name: r.name },
+        text: r.message,
+        room: r.room,
+        time: new Date(r.created_at).toLocaleTimeString('de-CH', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }));
 
-        ws.send(JSON.stringify({ type: 'refreshHistory', messages: formatted }));
-      } catch (err) {
-        console.error('Fehler beim Laden der Nachrichten:', err);
-      }
-
+      ws.send(JSON.stringify({ type: 'refreshHistory', messages: formatted }));
       break;
     }
 
@@ -117,8 +112,6 @@ const onMessage = async (ws, messageBuffer) => {
         minute: '2-digit'
       });
 
-      let msgToSend = null;
-
       try {
         const userId = await getOrCreateUserId(sender.user.name);
         await executeSQL(
@@ -126,22 +119,20 @@ const onMessage = async (ws, messageBuffer) => {
             [userId, message.text, sender.room]
         );
 
-        // Hole aktuellen Namen aus DB (immer aktuell!)
         const user = await executeSQL('SELECT name FROM users WHERE id = ?', [userId]);
 
-        msgToSend = {
+        broadcastToRoom(sender.room, {
           type: 'message',
           user: { name: user[0].name },
           text: message.text,
           room: sender.room,
           time: timestamp
-        };
+        });
 
       } catch (err) {
         console.error('Fehler beim Speichern:', err);
       }
 
-      if (msgToSend) broadcastToRoom(sender.room, msgToSend);
       break;
     }
 
@@ -162,57 +153,56 @@ const onMessage = async (ws, messageBuffer) => {
       const client = clients.find(c => c.ws === ws);
       if (!client) return;
 
-      const oldName = client.user.name;
-      const newName = message.user.name;
+      const newName = message.user.name.trim();
+      if (!newName) return;
 
-      try {
-        const result = await executeSQL('SELECT id FROM users WHERE name = ?', [oldName]);
-        if (result.length === 0) {
-          console.error('User-ID nicht gefunden:', oldName);
-          return;
-        }
-        const userId = result[0].id;
-
-        // Namen in DB aktualisieren
-        await executeSQL('UPDATE users SET name = ? WHERE id = ?', [newName, userId]);
-
-        // Lokale Session aktualisieren
-        client.user.name = newName;
-      } catch (err) {
-        console.error('Fehler beim usernameChange:', err);
+      // Gibt es den neuen Namen schon in der DB?
+      const dbUser = await executeSQL('SELECT id FROM users WHERE name = ?', [newName]);
+      if (dbUser.length > 0) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Benutzername wird bereits verwendet.' }));
         return;
       }
 
+      // Gibt es den bisherigen Nutzer überhaupt noch?
+      const result = await executeSQL('SELECT id FROM users WHERE name = ?', [client.user.name]);
+      if (result.length === 0) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Benutzer nicht gefunden.' }));
+        return;
+      }
+      const userId = result[0].id;
+
+      // Jetzt Name ändern!
+      await executeSQL('UPDATE users SET name = ? WHERE id = ?', [newName, userId]);
+      client.user.name = newName;
+
       sendUserListToAllRooms();
 
-      try {
-        const rows = await executeSQL(`
-          SELECT m.message, m.id, m.room, u.name
-          FROM messages m
-                 JOIN users u ON m.user_id = u.id
-          WHERE m.room = ?
-          ORDER BY m.id ASC
-        `, [client.room]);
+      // Verlauf neu laden
+      const rows = await executeSQL(`
+        SELECT m.message, m.id, m.room, m.created_at, u.name
+        FROM messages m
+               JOIN users u ON m.user_id = u.id
+        WHERE m.room = ?
+        ORDER BY m.id ASC
+      `, [client.room]);
 
-        const formatted = rows.map(r => ({
-          type: 'message',
-          user: { name: r.name },
-          text: r.message,
-          room: r.room,
-          time: ''
-        }));
+      const formatted = rows.map(r => ({
+        type: 'message',
+        user: { name: r.name },
+        text: r.message,
+        room: r.room,
+        time: new Date(r.created_at).toLocaleTimeString('de-CH', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }));
 
-        clients
-            .filter(c => c.room === client.room && c.ws.readyState === WebSocket.OPEN)
-            .forEach(c => {
-              c.ws.send(JSON.stringify({
-                type: 'refreshHistory',
-                messages: formatted
-              }));
-            });
-      } catch (err) {
-        console.error('Fehler beim Neuladen des Verlaufs:', err);
-      }
+      broadcastToRoom(client.room, {
+        type: 'refreshHistory',
+        messages: formatted
+      });
+
+      ws.send(JSON.stringify({ type: 'usernameChanged', name: newName }));
 
       break;
     }

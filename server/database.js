@@ -29,33 +29,35 @@ const executeSQL = async (query, params) => {
 const initializeDBSchema = async () => {
   console.log('Initializing database schema');
 
-  const userTableQuery = `CREATE TABLE IF NOT EXISTS users (
-                                                             id INT NOT NULL AUTO_INCREMENT,
-                                                             name VARCHAR(255) NOT NULL,
-    PRIMARY KEY (id)
-    );`;
+  const userTableQuery = `
+    CREATE TABLE IF NOT EXISTS users (
+                                       id INT NOT NULL AUTO_INCREMENT,
+                                       name VARCHAR(255) NOT NULL,
+      PRIMARY KEY (id)
+      );`;
   await executeSQL(userTableQuery);
 
-  const messageTableQuery = `CREATE TABLE IF NOT EXISTS messages (
-                                                                   id INT NOT NULL AUTO_INCREMENT,
-                                                                   user_id INT NOT NULL,
-                                                                   message VARCHAR(255) NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-    );`;
+  const messageTableQuery = `
+    CREATE TABLE IF NOT EXISTS messages (
+                                          id INT NOT NULL AUTO_INCREMENT,
+                                          user_id INT NOT NULL,
+                                          message VARCHAR(255) NOT NULL,
+      room VARCHAR(255) NOT NULL DEFAULT 'Allgemein',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+      );`;
   await executeSQL(messageTableQuery);
 
-  // Versuche room-Spalte hinzuzufügen
-  try {
-    await executeSQL(`ALTER TABLE messages ADD COLUMN room VARCHAR(255) NOT NULL DEFAULT 'Allgemein';`);
-    console.log('Spalte "room" wurde zur Tabelle "messages" hinzugefügt');
-  } catch (err) {
-    if (err.code === 'ER_DUP_FIELDNAME' || (err.message && err.message.includes('Duplicate column'))) {
-      console.log('Spalte "room" existiert bereits – wird übersprungen');
-    } else {
-      console.log('Fehler beim Hinzufügen der Spalte "room":', err);
-    }
-  }
+  // Raum-Spalte hinzufügen, falls nicht vorhanden
+  await executeSQL(`
+    ALTER TABLE messages 
+    ADD COLUMN IF NOT EXISTS room VARCHAR(255) NOT NULL DEFAULT 'Allgemein';`);
+
+  // Zeitstempel-Spalte hinzufügen, falls nicht vorhanden
+  await executeSQL(`
+    ALTER TABLE messages 
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
 
   console.log('Database schema initialized');
 };

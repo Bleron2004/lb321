@@ -75,11 +75,10 @@ function changeUsername() {
     const newName = document.getElementById('newUsernameInput').value.trim();
     if (!newName || !socket || socket.readyState !== WebSocket.OPEN) return;
 
-    currentUser.name = newName;
-
+    // NICHT direkt ändern – warte auf Bestätigung!
     socket.send(JSON.stringify({
         type: 'usernameChange',
-        user: currentUser,
+        user: { ...currentUser, name: newName },
         room: currentRoom
     }));
 
@@ -121,7 +120,7 @@ function connectWebSocket() {
             case 'refreshHistory':
                 if (data.messages && Array.isArray(data.messages)) {
                     const container = document.getElementById('messages');
-                    container.innerHTML = ''; // alten Verlauf löschen
+                    container.innerHTML = '';
                     data.messages.forEach(msg => {
                         if (msg.room === currentRoom) {
                             const p = document.createElement('p');
@@ -132,6 +131,17 @@ function connectWebSocket() {
                     });
                 }
                 break;
+
+            case 'usernameChanged':
+                alert(`Dein Benutzername wurde geändert zu: ${data.name}`);
+                currentUser.name = data.name;
+                break;
+
+            case 'error':
+                alert(data.message);
+                // Namen NICHT ändern!
+                break;
+
         }
     });
 
