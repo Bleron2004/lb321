@@ -15,9 +15,10 @@ const onConnection = (ws) => {
 };
 
 const getOrCreateUserId = async (username) => {
-  const users = await executeSQL('SELECT id FROM users WHERE name = ?', [username]);
+  // Passwort wird hier ignoriert, reicht für Chat
+  let users = await executeSQL('SELECT id FROM users WHERE name = ?', [username]);
   if (users.length > 0) return users[0].id;
-  const result = await executeSQL('INSERT INTO users (name) VALUES (?)', [username]);
+  const result = await executeSQL('INSERT INTO users (name, password) VALUES (?, ?)', [username, '']);
   return result.insertId;
 };
 

@@ -1,27 +1,33 @@
-const express = require('express')
-
-let users = []
+const express = require('express');
+const { executeSQL } = require('./database');
 
 function initializeAPI(app) {
-    app.use(express.json())
+    app.use(express.json());
 
-    app.post('/api/register', (req, res) => {
-        const { username, password } = req.body
-        if (users.find(u => u.username === username)) {
-            return res.status(400).json({ message: 'Benutzer existiert bereits' })
+    // Registrierung
+    app.post('/api/register', async (req, res) => {
+        const { username, password } = req.body;
+        if (!username || !password) {
+            return res.status(400).json({ message: 'Fehlende Felder' });
         }
-        users.push({ username, password })
-        res.json({ message: 'Registrierung erfolgreich' })
-    })
+        // Prüfe ob User schon existiert
+        const users = await executeSQL('SELECT id FROM users WHERE name = ?', [username]);
+        if (users.length > 0) {
+            return res.status(400).json({ message: 'Benutzer existiert bereits' });
+        }
+        await executeSQL('INSERT INTO users (name, password) VALUES (?, ?)', [username, password]);
+        res.json({ message: 'Registrierung erfolgreich' });
+    });
 
-    app.post('/api/login', (req, res) => {
-        const { username, password } = req.body
-        const user = users.find(u => u.username === username && u.password === password)
-        if (!user) {
-            return res.status(401).json({ message: 'Ungültige Anmeldedaten' })
+    // Login
+    app.post('/api/login', async (req, res) => {
+        const { username, password } = req.body;
+        const users = await executeSQL('SELECT id FROM users WHERE name = ? AND password = ?', [username, password]);
+        if (users.length === 0) {
+            return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
         }
-        res.json({ message: 'Login erfolgreich' })
-    })
+        res.json({ message: 'Login erfolgreich' });
+    });
 }
 
-module.exports = { initializeAPI }
+module.exports = { initializeAPI };

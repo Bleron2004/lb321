@@ -29,14 +29,17 @@ const executeSQL = async (query, params) => {
 const initializeDBSchema = async () => {
   console.log('Initializing database schema');
 
+  // Tabelle users mit Passwort!
   const userTableQuery = `
     CREATE TABLE IF NOT EXISTS users (
                                        id INT NOT NULL AUTO_INCREMENT,
-                                       name VARCHAR(255) NOT NULL,
+                                       name VARCHAR(255) NOT NULL UNIQUE,
+      password VARCHAR(255) NOT NULL,
       PRIMARY KEY (id)
       );`;
   await executeSQL(userTableQuery);
 
+  // Tabelle messages
   const messageTableQuery = `
     CREATE TABLE IF NOT EXISTS messages (
                                           id INT NOT NULL AUTO_INCREMENT,
@@ -48,16 +51,6 @@ const initializeDBSchema = async () => {
       FOREIGN KEY (user_id) REFERENCES users(id)
       );`;
   await executeSQL(messageTableQuery);
-
-  // Raum-Spalte hinzufügen, falls nicht vorhanden
-  await executeSQL(`
-    ALTER TABLE messages 
-    ADD COLUMN IF NOT EXISTS room VARCHAR(255) NOT NULL DEFAULT 'Allgemein';`);
-
-  // Zeitstempel-Spalte hinzufügen, falls nicht vorhanden
-  await executeSQL(`
-    ALTER TABLE messages 
-    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
 
   console.log('Database schema initialized');
 };

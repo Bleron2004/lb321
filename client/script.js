@@ -141,7 +141,6 @@ function connectWebSocket() {
                 alert(data.message);
                 // Namen NICHT ändern!
                 break;
-
         }
     });
 
