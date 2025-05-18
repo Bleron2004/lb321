@@ -47,6 +47,7 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - chatnet
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull mistral && wait"]
 
 volumes:
   db_data:

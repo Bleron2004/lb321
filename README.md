@@ -4,6 +4,10 @@
 - Docker
 - Node >= 20.x
 
+Falls KI nicht funktioniert bitte folgendes ausführen:
+docker exec -it ollama ollama pull mistral
+
+
 ## Get Started
 ```bash
 npm install
