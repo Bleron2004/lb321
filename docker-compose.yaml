@@ -15,7 +15,7 @@ services:
       - chatnet
 
   server:
-    build: ./server
+    image: bleron2024/chatapp:1.0.0
     restart: always
     environment:
       DB_HOST: db
@@ -30,7 +30,7 @@ services:
       - chatnet
 
   client:
-    build: ./client
+    image: bleron2024/chatapp-client:1.0.0
     ports:
       - "8080:80"
     depends_on:
