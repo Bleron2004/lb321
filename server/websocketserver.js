@@ -15,17 +15,19 @@ const onConnection = (ws) => {
 };
 
 const getOrCreateUserId = async (username) => {
-  // Passwort wird hier ignoriert, reicht für Chat
-  let users = await executeSQL('SELECT id FROM users WHERE name = ?', [username]);
+  const users = await executeSQL('SELECT id FROM users WHERE name = ?', [username]);
   if (users.length > 0) return users[0].id;
-  const result = await executeSQL('INSERT INTO users (name, password) VALUES (?, ?)', [username, '']);
+  const result = await executeSQL('INSERT INTO users (name) VALUES (?)', [username]);
   return result.insertId;
 };
 
 const sendUserListToRoom = (room) => {
   const users = clients
       .filter(client => client.room === room)
-      .map(client => client.user);
+      .map(client => ({
+        name: client.user.name,
+        status: client.status || 'online'
+      }));
 
   const msg = JSON.stringify({ type: 'users', users });
 
@@ -66,8 +68,14 @@ const onMessage = async (ws, messageBuffer) => {
       if (index !== -1) {
         clients[index].room = message.room;
         clients[index].user = message.user;
+        // Status bleibt gleich, falls schon gesetzt
       } else {
-        clients.push({ ws, user: message.user, room: message.room });
+        clients.push({
+          ws,
+          user: message.user,
+          room: message.room,
+          status: message.status || 'online'
+        });
       }
       sendUserListToAllRooms();
 
@@ -205,6 +213,15 @@ const onMessage = async (ws, messageBuffer) => {
 
       ws.send(JSON.stringify({ type: 'usernameChanged', name: newName }));
 
+      break;
+    }
+
+      // ----- NEU: Statuswechsel! -----
+    case 'statusChange': {
+      const client = clients.find(c => c.ws === ws);
+      if (!client) return;
+      client.status = message.status || 'online';
+      sendUserListToRoom(client.room);
       break;
     }
 

@@ -6,6 +6,17 @@
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+<!-- Status-Auswahl oben rechts, initial versteckt -->
+<div id="statusContainer" style="display: none; position: absolute; top: 10px; right: 30px; z-index: 10;">
+    <label for="statusSelect"><b>Status:</b></label>
+    <select id="statusSelect" onchange="changeStatus()">
+        <option value="online">🟢 Online</option>
+        <option value="busy">🔴 Beschäftigt</option>
+        <option value="away">🟠 Abwesend</option>
+    </select>
+</div>
+
 <div class="wrapper">
 
     <!-- Startbereich -->
@@ -19,8 +30,6 @@
         <input type="text" id="newUsernameInput" placeholder="Neuer Benutzername" />
         <button onclick="changeUsername()">Ändern</button>
     </div>
-
-
 
     <!-- Registrierungsformular -->
     <div id="registerForm" class="container" style="display:none;">
@@ -61,10 +70,64 @@
         <h3>Aktive Benutzer:</h3>
         <ul id="userList"></ul>
     </div>
+</div>
 
+<!-- OLLAMA KI-CHATBOX (unabhängig), initial versteckt -->
+<div id="ollamaChatBox" style="display: none; position: fixed; bottom: 40px; right: 40px; width: 410px; background: #232323; color: #fff; border-radius: 16px; box-shadow: 0 6px 32px #0009; z-index: 9999; padding: 0;">
+    <div style="padding: 20px; background: #171717; border-radius: 16px 16px 0 0; font-weight: 700; text-align: center;">KI Chat (Ollama)</div>
+    <div id="ollamaMessages" style="min-height: 130px; max-height: 240px; overflow-y: auto; padding: 14px; background: #212121; font-size: 1.07rem; border-bottom: 1px solid #333;"></div>
+    <div style="padding: 12px; background: #1b1b1b; display: flex; gap: 10px;">
+        <input id="ollamaInput" type="text" placeholder="Frage an KI..." autocomplete="off" style="flex:1 1 auto; min-width:0; border-radius: 10px; border: 1.5px solid #28a745; padding: 12px 14px; font-size: 1.07rem; background: #232323; color: #fff;">
+        <button id="ollamaSend" style="flex: 0 0 auto; width: 95px; border: none; background: #28a745; color: #fff; border-radius: 10px; padding: 11px 0; font-size: 1.07rem; font-weight: bold; cursor: pointer;">Senden</button>
+    </div>
 </div>
 
 <script src="script.js"></script>
-</body>
 
+<!-- Ollama KI Chatbox JS -->
+<script>
+    const ollamaInput = document.getElementById('ollamaInput');
+    const ollamaSend = document.getElementById('ollamaSend');
+    const ollamaMessages = document.getElementById('ollamaMessages');
+
+    async function sendOllamaQuestion() {
+        const prompt = ollamaInput.value.trim();
+        if (!prompt) return;
+
+        ollamaMessages.innerHTML += `<div style="color:#8ed1fc;"><b>Du:</b> ${prompt}</div>`;
+        ollamaInput.value = '';
+        ollamaInput.disabled = true;
+        ollamaSend.disabled = true;
+
+        ollamaMessages.innerHTML += `<div id="ollamaSpinner" style="color:#e6e600;">⏳ ...</div>`;
+        ollamaMessages.scrollTop = ollamaMessages.scrollHeight;
+
+        try {
+            const res = await fetch('http://localhost:3000/api/ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+
+            const data = await res.json();
+            document.getElementById('ollamaSpinner').remove();
+            ollamaMessages.innerHTML += `<div style="color:#c7ffd1;"><b>KI:</b> ${data.answer || 'Keine Antwort.'}</div>`;
+            ollamaMessages.scrollTop = ollamaMessages.scrollHeight;
+        } catch (e) {
+            document.getElementById('ollamaSpinner').remove();
+            ollamaMessages.innerHTML += `<div style="color:#ff5d5d;">Fehler bei der Anfrage.</div>`;
+            ollamaMessages.scrollTop = ollamaMessages.scrollHeight;
+        }
+
+        ollamaInput.disabled = false;
+        ollamaSend.disabled = false;
+        ollamaInput.focus();
+    }
+
+    ollamaSend.addEventListener('click', sendOllamaQuestion);
+    ollamaInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendOllamaQuestion();
+    });
+</script>
+</body>
 </html>

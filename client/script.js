@@ -2,8 +2,16 @@ const API_BASE = 'http://localhost:3000';
 let socket = null;
 let currentUser = null;
 let currentRoom = 'Allgemein';
+let currentStatus = 'online';
+
+// Hilfsfunktion: Status & KI-Chatbox ein-/ausblenden
+function showStatusAndKI(show) {
+    document.getElementById('statusContainer').style.display = show ? 'block' : 'none';
+    document.getElementById('ollamaChatBox').style.display = show ? 'block' : 'none';
+}
 
 function showForm(form) {
+    showStatusAndKI(false); // Immer ausblenden beim Wechsel zu Login/Registrieren/Start
     document.getElementById('start').style.display = 'none';
     document.getElementById('registerForm').style.display = form === 'register' ? 'block' : 'none';
     document.getElementById('loginForm').style.display = form === 'login' ? 'block' : 'none';
@@ -12,6 +20,7 @@ function showForm(form) {
 }
 
 function showChat() {
+    showStatusAndKI(true); // Jetzt einblenden!
     document.getElementById('registerForm').style.display = 'none';
     document.getElementById('loginForm').style.display = 'none';
     document.getElementById('start').style.display = 'none';
@@ -19,6 +28,8 @@ function showChat() {
     document.getElementById('userListContainer').style.display = 'block';
     document.getElementById('usernameChangeContainer').style.display = 'block';
     document.getElementById('roomName').textContent = currentRoom;
+    document.getElementById('statusSelect').value = currentStatus;
+    changeStatus();
 }
 
 async function register() {
@@ -75,7 +86,6 @@ function changeUsername() {
     const newName = document.getElementById('newUsernameInput').value.trim();
     if (!newName || !socket || socket.readyState !== WebSocket.OPEN) return;
 
-    // NICHT direkt ändern – warte auf Bestätigung!
     socket.send(JSON.stringify({
         type: 'usernameChange',
         user: { ...currentUser, name: newName },
@@ -85,12 +95,28 @@ function changeUsername() {
     document.getElementById('newUsernameInput').value = '';
 }
 
+// ----- NEU: Statuswechsel -----
+function changeStatus() {
+    const select = document.getElementById('statusSelect');
+    currentStatus = select.value;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'statusChange',
+            user: currentUser,
+            status: currentStatus,
+            room: currentRoom
+        }));
+    }
+}
+// -----------------------------
+
 function connectWebSocket() {
     socket = new WebSocket('ws://localhost:3000');
 
     socket.addEventListener('open', () => {
         console.log('WebSocket verbunden');
         socket.send(JSON.stringify({ type: 'user', user: currentUser, room: currentRoom }));
+        changeStatus();
     });
 
     socket.addEventListener('message', (event) => {
@@ -139,7 +165,6 @@ function connectWebSocket() {
 
             case 'error':
                 alert(data.message);
-                // Namen NICHT ändern!
                 break;
         }
     });
@@ -148,16 +173,21 @@ function connectWebSocket() {
     socket.addEventListener('error', (err) => console.error('WebSocket Fehler:', err));
 }
 
+// ----------- Userlist mit Status anzeigen -----------
 function updateUserList(users) {
     const list = document.getElementById('userList');
     list.innerHTML = '';
-    const uniqueNames = [...new Set(users.map(u => u.name))];
-    uniqueNames.forEach(name => {
+    users.forEach(u => {
         const li = document.createElement('li');
-        li.textContent = name;
+        let statusDot = '';
+        if (u.status === 'online') statusDot = '🟢';
+        else if (u.status === 'busy') statusDot = '🔴';
+        else if (u.status === 'away') statusDot = '🟠';
+        li.innerHTML = `${statusDot} ${u.name}`;
         list.appendChild(li);
     });
 }
+// ---------------------------------------------------
 
 function switchRoom(roomName) {
     currentRoom = roomName;
@@ -166,10 +196,13 @@ function switchRoom(roomName) {
     document.getElementById('typingStatus').textContent = '';
     if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'user', user: currentUser, room: currentRoom }));
+        changeStatus();
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    showStatusAndKI(false); // Sicherheit: Alles ausblenden, falls Script früher lädt
+
     const sendButton = document.getElementById('sendMessage');
     const input = document.getElementById('messageInput');
 
